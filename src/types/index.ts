@@ -48,3 +48,33 @@ export interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
 }
+
+// File upload types
+export interface FileUploadResponse {
+  file_id: string
+  filename: string
+  status: string
+}
+
+export interface FileStatusResponse {
+  file_id: string
+  status: 'processing' | 'processed' | 'unknown'
+  detail: string
+}
+
+export interface UploadProgress {
+  fileId: string
+  filename: string
+  progress: number
+  status: 'uploading' | 'processing' | 'processed' | 'unknown' | 'error'
+  error?: string
+}
+
+export interface FileUpload {
+  file: File
+  id: string
+  progress: number
+  status: 'pending' | 'uploading' | 'processing' | 'processed' | 'unknown' | 'error'
+  fileId?: string
+  error?: string
+}

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ChatRequest, ChatResponse } from '../types'
+import type { ChatRequest, ChatResponse, FileUploadResponse, FileStatusResponse } from '../types'
 import { authService } from './auth'
 
 // Configure base URL - update this to match your backend URL
@@ -155,6 +155,112 @@ class WebSocketChatService {
 }
 
 export const websocketChatService = new WebSocketChatService()
+
+// File Upload Service
+export const fileUploadService = {
+  /**
+   * Upload a file to the backend
+   */
+  async uploadFile(file: File, onProgress?: (progress: number) => void): Promise<FileUploadResponse> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post('/api/v1/upload/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total && onProgress) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            onProgress(percentCompleted)
+          }
+        },
+      })
+
+      return response.data
+    } catch (error) {
+      console.error('File upload failed:', error)
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.detail || 'File upload failed'
+        throw new Error(errorMessage)
+      }
+      throw new Error('File upload failed')
+    }
+  },
+
+  /**
+   * Check the processing status of an uploaded file
+   */
+  async getFileStatus(fileId: string): Promise<FileStatusResponse> {
+    try {
+      const response = await api.get(`/api/v1/upload/status/${fileId}`)
+      return response.data
+    } catch (error) {
+      console.error('Failed to get file status:', error)
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.detail || 'Failed to get file status'
+        throw new Error(errorMessage)
+      }
+      throw new Error('Failed to get file status')
+    }
+  },
+
+  /**
+   * Poll file status until processing is complete
+   */
+  async pollFileStatus(
+    fileId: string,
+    onStatusUpdate?: (status: FileStatusResponse) => void,
+    pollInterval: number = 2000,
+    maxAttempts: number = 30
+  ): Promise<FileStatusResponse> {
+    let attempts = 0
+
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          attempts++
+          const status = await this.getFileStatus(fileId)
+          
+          if (onStatusUpdate) {
+            onStatusUpdate(status)
+          }
+
+          // Check if processing is complete
+          if (status.status === 'processed') {
+            resolve(status)
+            return
+          }
+
+          // Check for unknown status (which might indicate an error)
+          if (status.status === 'unknown') {
+            reject(new Error(status.detail || 'File processing failed with unknown status'))
+            return
+          }
+
+          // Check if we've exceeded max attempts
+          if (attempts >= maxAttempts) {
+            reject(new Error('File processing timeout - file is still processing'))
+            return
+          }
+
+          // Continue polling if status is 'processing'
+          if (status.status === 'processing') {
+            setTimeout(poll, pollInterval)
+          } else {
+            // Unexpected status
+            reject(new Error(`Unexpected file status: ${status.status}`))
+          }
+        } catch (error) {
+          reject(error)
+        }
+      }
+
+      poll()
+    })
+  }
+}
 
 // Traditional HTTP API service (for non-chat endpoints)
 export const chatService = {

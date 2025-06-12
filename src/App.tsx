@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, MessageSquare, Wifi, WifiOff, LogOut } from 'lucide-react'
+import { Send, Bot, User, MessageSquare, Wifi, WifiOff, LogOut, Paperclip, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Message } from './types'
 import { websocketChatService } from './services/api'
 import { useAuth } from './contexts/AuthContext'
 import { AuthWrapper } from './components/AuthWrapper'
+import { FileUploadComponent } from './components/FileUpload'
 
 interface ChatMessage {
   sender: string
@@ -26,6 +27,8 @@ function App() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
+  const [showFileUpload, setShowFileUpload] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<{id: string, name: string}[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -145,6 +148,30 @@ function App() {
     }
   }
 
+  const handleFileUploadComplete = (fileId: string, filename: string) => {
+    setUploadedFiles(prev => [...prev, { id: fileId, name: filename }])
+    
+    // Add a message to the chat about the uploaded file
+    const fileMessage: Message = {
+      id: Date.now().toString(),
+      content: `📁 **File uploaded successfully:** ${filename}\n\nThe file has been processed and is now available for questions. You can ask me anything about its content!`,
+      role: 'assistant',
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, fileMessage])
+  }
+
+  const handleFileUploadError = (error: string) => {
+    // Add an error message to the chat
+    const errorMessage: Message = {
+      id: Date.now().toString(),
+      content: `❌ **File upload failed:** ${error}`,
+      role: 'assistant',
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, errorMessage])
+  }
+
   const TypingIndicator = () => (
     <div className="flex items-center space-x-2 p-4">
       <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -169,7 +196,14 @@ function App() {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Knowledge Base Chatbot</h1>
-              <p className="text-sm text-gray-500">Ask me anything about our knowledge base</p>
+              <p className="text-sm text-gray-500">
+                Ask me anything about our knowledge base
+                {uploadedFiles.length > 0 && (
+                  <span className="ml-2 text-primary-600">
+                    • {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''} uploaded
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -256,6 +290,14 @@ function App() {
       <div className="bg-white border-t border-gray-200 p-4">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
           <div className="flex items-end space-x-3">
+            <button
+              type="button"
+              onClick={() => setShowFileUpload(true)}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Upload files"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
             <div className="flex-1">
               <textarea
                 value={input}
@@ -282,13 +324,39 @@ function App() {
           </div>
           <p className="text-xs text-gray-500 mt-2 text-center">
             {isConnected ? (
-              "Press Enter to send, Shift+Enter for new line"
+              "Press Enter to send, Shift+Enter for new line • Click 📎 to upload files"
             ) : (
               "Connecting to WebSocket server..."
             )}
           </p>
         </form>
       </div>
+
+      {/* File Upload Modal */}
+      {showFileUpload && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Upload Files</h2>
+              <button
+                onClick={() => setShowFileUpload(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <FileUploadComponent
+                onUploadComplete={handleFileUploadComplete}
+                onUploadError={handleFileUploadError}
+                acceptedTypes={['.pdf', '.doc', '.docx', '.txt', '.md', '.csv', '.json']}
+                maxFileSize={25}
+                multiple={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
