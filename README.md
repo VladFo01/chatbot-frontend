@@ -4,10 +4,12 @@ A modern, responsive React frontend for a knowledge-based chatbot application bu
 
 ## Features
 
+- 🔐 **User Authentication** - Secure login/register with JWT tokens
 - 🤖 **Interactive Chat Interface** - Clean, intuitive chat UI with message bubbles
 - 💬 **Real-time Messaging** - WebSocket-based real-time communication
 - 🔄 **Auto-reconnection** - Automatic reconnection with exponential backoff
 - 📶 **Connection Status** - Visual indicator for WebSocket connection status
+- 👤 **User Management** - Profile display and secure logout
 - 📱 **Responsive Design** - Works seamlessly across desktop and mobile devices
 - 🎨 **Modern UI/UX** - Beautiful design with Tailwind CSS and custom animations
 - 📝 **Markdown Support** - Rich text rendering for bot responses
@@ -47,7 +49,7 @@ A modern, responsive React frontend for a knowledge-based chatbot application bu
    VITE_APP_VERSION=1.0.0
    ```
 
-3. **Start the development server:**
+3. **Start development:**
    ```bash
    npm run dev
    ```
@@ -60,9 +62,15 @@ A modern, responsive React frontend for a knowledge-based chatbot application bu
 ```
 src/
 ├── components/          # Reusable UI components
+│   ├── AuthWrapper.tsx  # Authentication flow controller
+│   ├── LoginForm.tsx    # Login form component
+│   ├── RegisterForm.tsx # Registration form component
 │   └── ChatMessage.tsx  # Individual chat message component
+├── contexts/            # React contexts
+│   └── AuthContext.tsx  # Authentication state management
 ├── services/            # API and external service integrations
-│   └── api.ts          # Axios configuration and chat service
+│   ├── api.ts          # WebSocket and API configuration
+│   └── auth.ts         # Authentication API calls
 ├── types/              # TypeScript type definitions
 │   └── index.ts        # Common interfaces and types
 ├── App.tsx             # Main application component
@@ -81,9 +89,45 @@ src/
 
 The frontend is designed to work with a FastAPI backend using WebSockets for real-time chat communication. Update the `VITE_API_URL` and `VITE_WS_URL` environment variables to point to your backend service.
 
+### Authentication Endpoints
+
+The application expects the following FastAPI authentication endpoints:
+
+- `POST /api/v1/auth/login` - Login with email/password
+- `POST /api/v1/auth/register` - User registration with email/password
+
+**Login Request:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Register Request:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Authentication Response:**
+```json
+{
+  "access_token": "jwt_token_string",
+  "token_type": "bearer"
+}
+```
+
 ### WebSocket Connection
 
-The application connects to the backend via WebSocket at `/ws` endpoint. Authentication can be handled via query parameters or headers.
+The application connects to the backend via WebSocket at `/ws/chat` endpoint. Authentication is handled via query parameters using JWT tokens.
+
+**WebSocket URL Format:**
+```
+ws://localhost:8000/ws/chat?token=<jwt_token>
+```
 
 ### WebSocket Message Format
 
@@ -101,11 +145,6 @@ The application connects to the backend via WebSocket at `/ws` endpoint. Authent
   "error": "Optional error message"
 }
 ```
-
-### HTTP API Endpoints (Optional)
-
-- `GET /api/conversations/:id` - Get conversation history
-- `POST /api/conversations` - Create new conversation
 
 ## Customization
 

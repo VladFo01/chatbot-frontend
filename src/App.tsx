@@ -1,15 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, MessageSquare, Wifi, WifiOff } from 'lucide-react'
+import { Send, Bot, User, MessageSquare, Wifi, WifiOff, LogOut } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Message } from './types'
 import { websocketChatService } from './services/api'
+import { useAuth } from './contexts/AuthContext'
+import { AuthWrapper } from './components/AuthWrapper'
+
+interface ChatMessage {
+  sender: string
+  message: string
+  timestamp: string
+}
 
 function App() {
+  const { isAuthenticated, isLoading: authLoading, user, logout } = useAuth()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hello! I\'m your knowledge-based chatbot assistant. How can I help you today?',
+      content: `Hello${user?.email ? ` ${user.email}` : ''}! I'm your knowledge-based chatbot assistant. How can I help you today?`,
       role: 'assistant',
       timestamp: new Date()
     }
@@ -39,13 +48,23 @@ function App() {
       }
     }
 
-    // Set up message handler
-    websocketChatService.onMessage((data) => {
+    // Set up message handler - handle the actual backend message format
+    websocketChatService.onMessage((data: ChatMessage) => {
+      // Backend echoes back user messages and stores them
+      // We need to check if this is an echo of our own message or a bot response
+      if (data.sender === user?.email) {
+        // This is an echo of our own message, we can ignore it since we already added it
+        console.log('Received echo of own message:', data)
+        setIsLoading(false) // Stop loading since message was processed
+        return
+      }
+      
+      // This would be a bot response (if the backend sends bot responses)
       const assistantMessage: Message = {
         id: Date.now().toString(),
-        content: data.response || 'I received your message.',
+        content: data.message,
         role: 'assistant',
-        timestamp: new Date()
+        timestamp: new Date(data.timestamp)
       }
       setMessages(prev => [...prev, assistantMessage])
       setIsLoading(false)
@@ -66,7 +85,32 @@ function App() {
     return () => {
       websocketChatService.disconnect()
     }
-  }, [])
+  }, [user?.email])
+
+  // Show auth wrapper if not authenticated
+  if (!isAuthenticated && !authLoading) {
+    return <AuthWrapper />
+  }
+
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-6 h-6 text-white" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h2>
+          <p className="text-gray-600">Checking authentication status</p>
+        </div>
+      </div>
+    )
+  }
+
+  const handleLogout = () => {
+    websocketChatService.disconnect()
+    logout()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,6 +130,8 @@ function App() {
     try {
       await websocketChatService.sendMessage(input)
       // The response will be handled by the onMessage callback
+      // Note: Since your backend only echoes messages and doesn't generate responses,
+      // we'll just stop loading after the echo is received
     } catch (error) {
       console.error('Error:', error)
       const errorMessage: Message = {
@@ -126,15 +172,32 @@ function App() {
               <p className="text-sm text-gray-500">Ask me anything about our knowledge base</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {isConnected ? (
-              <Wifi className="w-5 h-5 text-green-500" />
-            ) : (
-              <WifiOff className="w-5 h-5 text-red-500" />
-            )}
-            <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              {isConnected ? (
+                <Wifi className="w-5 h-5 text-green-500" />
+              ) : (
+                <WifiOff className="w-5 h-5 text-red-500" />
+              )}
+              <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            
+            <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.email}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>

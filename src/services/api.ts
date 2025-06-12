@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { ChatRequest, ChatResponse } from '../types'
+import { authService } from './auth'
 
 // Configure base URL - update this to match your backend URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -38,111 +39,112 @@ api.interceptors.response.use(
   }
 )
 
-// WebSocket Chat Service
+interface ChatMessage {
+  sender: string
+  message: string
+  timestamp: string
+}
+
+interface WebSocketMessage {
+  message: string
+}
+
 class WebSocketChatService {
   private ws: WebSocket | null = null
-  private messageHandlers: Array<(message: ChatResponse) => void> = []
-  private connectionHandlers: Array<(connected: boolean) => void> = []
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectDelay = 1000
+  private messageHandler: ((data: ChatMessage) => void) | null = null
+  private connectionHandler: ((connected: boolean) => void) | null = null
 
-  connect(): Promise<void> {
+  async connect(): Promise<void> {
+    const token = authService.getStoredToken()
+    if (!token) {
+      throw new Error('No authentication token available')
+    }
+
+    const wsEndpoint = `${WS_BASE_URL}/ws/chat?token=${token}`
+
     return new Promise((resolve, reject) => {
       try {
-        const token = localStorage.getItem('authToken')
-        const wsUrl = token 
-          ? `${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}`
-          : `${WS_BASE_URL}/ws/chat`
-
-        this.ws = new WebSocket(wsUrl)
+        this.ws = new WebSocket(wsEndpoint)
 
         this.ws.onopen = () => {
           console.log('WebSocket connected')
           this.reconnectAttempts = 0
-          this.notifyConnectionHandlers(true)
+          this.connectionHandler?.(true)
           resolve()
         }
 
         this.ws.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data)
-            this.notifyMessageHandlers(data)
+            const data: ChatMessage = JSON.parse(event.data)
+            console.log('Received message:', data)
+            this.messageHandler?.(data)
           } catch (error) {
             console.error('Failed to parse WebSocket message:', error)
-            // Handle plain text messages
-            this.notifyMessageHandlers({ response: event.data })
           }
         }
 
         this.ws.onclose = (event) => {
-          console.log('WebSocket disconnected:', event.code, event.reason)
-          this.notifyConnectionHandlers(false)
+          console.log('WebSocket closed:', event.code, event.reason)
+          this.connectionHandler?.(false)
           
-          if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.attemptReconnect()
+          // Don't reconnect if it's an authentication error (1008 = Policy Violation)
+          if (event.code === 1008) {
+            console.log('Authentication failed, not attempting to reconnect')
+            return
+          }
+
+          // Attempt to reconnect if not manually closed
+          if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.scheduleReconnect()
           }
         }
 
         this.ws.onerror = (error) => {
           console.error('WebSocket error:', error)
-          reject(new Error('WebSocket connection failed'))
+          reject(error)
         }
-
       } catch (error) {
+        console.error('Failed to create WebSocket connection:', error)
         reject(error)
       }
     })
   }
 
-  private attemptReconnect() {
-    this.reconnectAttempts++
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-    
-    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+  private scheduleReconnect(): void {
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts)
+    console.log(`Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`)
     
     setTimeout(() => {
-      this.connect().catch(console.error)
+      this.reconnectAttempts++
+      this.connect().catch((error) => {
+        console.error('Reconnection failed:', error)
+      })
     }, delay)
   }
 
-  sendMessage(message: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        reject(new Error('WebSocket is not connected'))
-        return
-      }
+  async sendMessage(message: string): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected')
+    }
 
-      try {
-        // Send as JSON if the backend expects JSON format
-        const messageData = JSON.stringify({ message })
-        this.ws.send(messageData)
-        resolve()
-      } catch (error) {
-        reject(error)
-      }
-    })
+    const messageData: WebSocketMessage = { message }
+    this.ws.send(JSON.stringify(messageData))
   }
 
-  onMessage(handler: (message: ChatResponse) => void) {
-    this.messageHandlers.push(handler)
+  onMessage(handler: (data: ChatMessage) => void): void {
+    this.messageHandler = handler
   }
 
-  onConnectionChange(handler: (connected: boolean) => void) {
-    this.connectionHandlers.push(handler)
+  onConnectionChange(handler: (connected: boolean) => void): void {
+    this.connectionHandler = handler
   }
 
-  private notifyMessageHandlers(message: ChatResponse) {
-    this.messageHandlers.forEach(handler => handler(message))
-  }
-
-  private notifyConnectionHandlers(connected: boolean) {
-    this.connectionHandlers.forEach(handler => handler(connected))
-  }
-
-  disconnect() {
+  disconnect(): void {
     if (this.ws) {
-      this.ws.close()
+      this.ws.close(1000, 'Manual disconnect')
       this.ws = null
     }
   }
@@ -152,7 +154,6 @@ class WebSocketChatService {
   }
 }
 
-// Create a singleton instance
 export const websocketChatService = new WebSocketChatService()
 
 // Traditional HTTP API service (for non-chat endpoints)
