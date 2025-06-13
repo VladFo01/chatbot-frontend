@@ -65,17 +65,18 @@ src/
 │   ├── AuthWrapper.tsx  # Authentication flow controller
 │   ├── LoginForm.tsx    # Login form component
 │   ├── RegisterForm.tsx # Registration form component
+│   ├── FileUpload.tsx   # Upload file component
 │   └── ChatMessage.tsx  # Individual chat message component
 ├── contexts/            # React contexts
 │   └── AuthContext.tsx  # Authentication state management
 ├── services/            # API and external service integrations
-│   ├── api.ts          # WebSocket and API configuration
-│   └── auth.ts         # Authentication API calls
-├── types/              # TypeScript type definitions
-│   └── index.ts        # Common interfaces and types
-├── App.tsx             # Main application component
-├── main.tsx            # Application entry point
-└── index.css           # Global styles and Tailwind configuration
+│   ├── api.ts           # WebSocket and API configuration
+│   └── auth.ts          # Authentication API calls
+├── types/               # TypeScript type definitions
+│   └── index.ts         # Common interfaces and types
+├── App.tsx              # Main application component
+├── main.tsx             # Application entry point
+└── index.css            # Global styles and Tailwind configuration
 ```
 
 ## Available Scripts
@@ -178,7 +179,3 @@ The built files will be in the `dist` directory, ready for deployment to any sta
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
