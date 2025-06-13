@@ -61,13 +61,18 @@ function App() {
         setIsLoading(false) // Stop loading since message was processed
         return
       }
-      
-      // This would be a bot response (if the backend sends bot responses)
+      // Parse timestamp as UTC and display in local time
+      let parsedDate: Date
+      if (data.timestamp.endsWith('Z')) {
+        parsedDate = new Date(data.timestamp)
+      } else {
+        parsedDate = new Date(data.timestamp + 'Z')
+      }
       const assistantMessage: Message = {
         id: Date.now().toString(),
         content: data.message,
         role: 'assistant',
-        timestamp: new Date(data.timestamp)
+        timestamp: parsedDate
       }
       setMessages(prev => [...prev, assistantMessage])
       setIsLoading(false)
