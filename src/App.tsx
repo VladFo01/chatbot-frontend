@@ -354,7 +354,7 @@ function App() {
               <FileUploadComponent
                 onUploadComplete={handleFileUploadComplete}
                 onUploadError={handleFileUploadError}
-                acceptedTypes={['.pdf', '.doc', '.docx', '.txt', '.md', '.csv', '.json']}
+                acceptedTypes={['.pdf', '.doc', '.docx', '.txt', '.json', '.rdf', '.nt', '.owl']}
                 maxFileSize={25}
                 multiple={true}
               />

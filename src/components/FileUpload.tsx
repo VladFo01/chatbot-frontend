@@ -24,22 +24,17 @@ export const FileUploadComponent: React.FC<FileUploadProps> = ({
 
   const generateId = () => Math.random().toString(36).substr(2, 9)
 
-  const validateFile = (file: File): string | null => {
-    // Check file size
-    if (file.size > maxFileSize * 1024 * 1024) {
-      return `File size must be less than ${maxFileSize}MB`
-    }
-
-    // Check file type
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
-    if (!acceptedTypes.includes(fileExtension)) {
-      return `File type not supported. Accepted types: ${acceptedTypes.join(', ')}`
-    }
-
-    return null
-  }
-
   const handleFiles = useCallback((files: FileList) => {
+    const validateFile = (file: File): string | null => {
+      if (file.size > maxFileSize * 1024 * 1024) {
+        return `File size must be less than ${maxFileSize}MB`
+      }
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+      if (!acceptedTypes.includes(fileExtension)) {
+        return `File type not supported. Accepted types: ${acceptedTypes.join(', ')}`
+      }
+      return null
+    }
     const fileArray = Array.from(files)
     
     if (!multiple && fileArray.length > 1) {
@@ -123,7 +118,7 @@ export const FileUploadComponent: React.FC<FileUploadProps> = ({
         onUploadError?.(errorMessage)
       }
     })
-  }, [multiple, onUploadComplete, onUploadError, validateFile])
+  }, [multiple, onUploadComplete, onUploadError, maxFileSize, acceptedTypes])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
