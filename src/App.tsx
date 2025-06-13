@@ -289,16 +289,16 @@ function App() {
       {/* Input Form */}
       <div className="bg-white border-t border-gray-200 p-4">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-          <div className="flex items-end space-x-3">
+          <div className="flex items-center space-x-3">
             <button
               type="button"
               onClick={() => setShowFileUpload(true)}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="flex items-center justify-center p-2 h-10 w-10 text-gray-400 hover:text-gray-600 transition-colors"
               title="Upload files"
             >
               <Paperclip className="w-5 h-5" />
             </button>
-            <div className="flex-1">
+            <div className="flex-1 flex items-center">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -317,7 +317,7 @@ function App() {
             <button
               type="submit"
               disabled={!input.trim() || isLoading || !isConnected}
-              className="send-button"
+              className="flex items-center justify-center send-button h-10 w-10"
             >
               <Send className="w-5 h-5" />
             </button>
