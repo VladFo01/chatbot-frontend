@@ -166,16 +166,3 @@ npm run build
 ```
 
 The built files will be in the `dist` directory, ready for deployment to any static hosting service.
-
-### Deploy to Vercel/Netlify:
-1. Connect your repository
-2. Set environment variables in the platform
-3. Deploy with automatic builds on git push
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
